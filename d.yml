@@ -1,0 +1,64 @@
+- hosts: 192.168.43.126
+  vars_prompt:
+      - name: os_name
+        private: no
+        prompt: "Enter the container name"
+
+      - name: port_no
+        private: no
+        prompt: "Enter the host port number"  
+  tasks:
+
+      - name: Configuring docker repo
+        yum_repository:
+                file: "docker"
+                name: "docker"
+                description: "docker repo file" 
+                gpgcheck: no
+                baseurl: "https://download.docker.com/linux/centos/7/x86_64/stable/"
+
+      - name: Installing docker
+        package:
+                name: "docker-ce-18.09.1-3.el7.x86_64"
+                state: present
+
+      - name: Starting docker services
+        service:
+                name: "docker"
+                state: started   
+                enabled: yes
+
+      - name: Installing python library
+        pip:
+                name: "docker-py"
+                state: present
+
+      - name: pulling docker image
+        docker_image:
+                name: httpd
+                source: pull
+                tag: latest 
+
+      - name: copying page to /var/www/html folder
+        copy:
+                src: "page.html"
+                dest: "/var/www/html/"
+
+      - name: Launching a docker container
+        docker_container: 
+                name: "{{ os_name }}"
+                image: httpd
+                tty: yes
+                interactive: yes
+                state: started
+                ports: 
+                   - "{{ port_no}}:80" 
+                volumes: "/var/www/html/:/usr/local/apache2/htdocs/"        
+                           
+                                       
+
+      - name: creating firewall rule
+        firewalld:
+                port: "{{ port_no}}/tcp"
+                state: enabled
+                immediate: yes
